@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ISStrack | Mission Telemetry</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  </head>
+  <body>
+    <div class="stars"></div>
+
+    <header class="topbar">
+      <div class="logo-wrap">
+        <div class="logo">ISStrack</div>
+        <p>Orbital telemetry / mission dashboard</p>
+      </div>
+
+      <div class="status-pill">
+        <span class="indicator"></span>
+        <span id="connection">Connected</span>
+      </div>
+
+      <div id="lastUpdated" class="timestamp">Updating...</div>
+    </header>
+
+    <div class="container">
+      <aside class="sidebar">
+        <section class="panel-section">
+          <div class="section-label">ISS STATUS</div>
+          <div class="card selected">
+            <div class="card-heading">International Space Station</div>
+            <div class="status-row">
+              <span>Status</span>
+              <strong>LIVE</strong>
+            </div>
+            <div class="status-row">
+              <span>Connection</span>
+              <strong id="telemetryStatus">Receiving telemetry...</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-label">POSITION</div>
+          <div class="card telemetry-card">
+            <div class="metric-row">
+              <span>Latitude</span>
+              <strong id="lat">--</strong>
+            </div>
+            <div class="metric-row">
+              <span>Longitude</span>
+              <strong id="lon">--</strong>
+            </div>
+            <div class="metric-row">
+              <span>Altitude</span>
+              <strong id="altitude">--</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-label">MOTION</div>
+          <div class="card telemetry-card">
+            <div class="metric-row">
+              <span>Velocity</span>
+              <strong id="velocity">--</strong>
+            </div>
+            <div class="metric-row">
+              <span>Speed</span>
+              <strong id="speed">--</strong>
+            </div>
+            <div class="metric-row">
+              <span>Direction</span>
+              <strong id="heading">--</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-label">ORBITAL DATA</div>
+          <div class="card telemetry-card">
+            <div class="metric-row">
+              <span>Altitude</span>
+              <strong id="altitudeOrbit">--</strong>
+            </div>
+            <div class="metric-row">
+              <span>Orbit Number</span>
+              <strong id="orbitNumber">--</strong>
+            </div>
+            <div class="metric-row">
+              <span>Orbital Period</span>
+              <strong id="orbitalPeriod">--</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-label">TELEMETRY</div>
+          <div class="card telemetry-card">
+            <div class="metric-row">
+              <span>Last Packet</span>
+              <strong id="lastPacket">--</strong>
+            </div>
+            <div class="metric-row">
+              <span>Packets Received</span>
+              <strong id="updates">0</strong>
+            </div>
+            <div class="metric-row">
+              <span>Latency</span>
+              <strong id="latency">--</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-label">NEXT VISIBLE PASS</div>
+          <div class="card pass-card">
+            <div class="pass-row">
+              <span>Location</span>
+              <strong id="passLocation">Locating...</strong>
+            </div>
+            <div class="pass-row">
+              <span>Visible In</span>
+              <strong id="visibleIn">--</strong>
+            </div>
+            <div class="pass-row">
+              <span>Duration</span>
+              <strong id="passDuration">--</strong>
+            </div>
+            <div class="pass-row">
+              <span>Maximum Elevation</span>
+              <strong id="maxElevation">--</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-label">CONTROLS</div>
+          <div class="card controls">
+            <button id="followBtn">Pause Follow</button>
+            <button id="zoomISSBtn">Zoom to ISS</button>
+            <button id="resetBtn">Reset View</button>
+          </div>
+        </section>
+      </aside>
+
+      <main class="map-shell">
+        <div class="map-topbar">
+          <div class="view-switcher" aria-label="Map mode switcher">
+            <button class="view-tab is-active" id="mapModeBtn">2D Map</button>
+            <button class="view-tab" id="globeModeBtn">3D Globe</button>
+          </div>
+          <div class="status-badge">LIVE MAP / ISS TRACKER</div>
+        </div>
+
+        <div id="map" class="map-surface"></div>
+        <div id="globeView" class="globe-view hidden">
+          <div class="globe-orbit"></div>
+          <div class="globe-sunlight"></div>
+          <div class="globe-terminator"></div>
+          <div class="globe-marker" id="globeMarker"></div>
+        </div>
+      </main>
+    </div>
+
+    <div class="hud-bar">
+      <span id="hudAltitude">ALT --</span>
+      <span id="hudSpeed">VEL --</span>
+      <span id="hudOrbit">ORBIT --</span>
+      <span id="hudTime">UTC --</span>
+      <span id="hudStatus">STATUS LIVE</span>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
