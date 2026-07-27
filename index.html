@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ISStrack | Mission Telemetry</title>
+    <title>🛰️ ISStrack</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -11,17 +11,25 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
   </head>
   <body>
     <div class="stars"></div>
 
+    <div id="offlineBanner" class="offline-banner hidden" role="status">
+      <span class="offline-dot"></span>
+      <span id="offlineBannerText">Connection lost. Showing last known telemetry.</span>
+    </div>
+
     <header class="topbar">
       <div class="logo-wrap">
         <div class="logo">ISStrack</div>
-        <p>Orbital telemetry / mission dashboard</p>
+        <p>Orbital telemetry</p>
       </div>
 
       <div class="status-pill">
@@ -164,12 +172,35 @@
 
         <div id="map" class="map-surface"></div>
         <div id="globeView" class="globe-view hidden">
-          <div class="globe-orbit"></div>
-          <div class="globe-sunlight"></div>
-          <div class="globe-terminator"></div>
-          <div class="globe-marker" id="globeMarker"></div>
+          <div class="globe-fallback hidden" id="globeFallback">
+            <p>Your browser or device doesn't support WebGL, so the 3D globe can't render here.</p>
+            <p class="globe-fallback-sub">The 2D map keeps working normally.</p>
+          </div>
+          <div class="globe-hint" id="globeHint">
+            Drag to rotate &middot; Scroll to zoom
+          </div>
+          <div class="camera-mode-switcher" id="cameraModeSwitcher" aria-label="Camera mode">
+            <button class="camera-mode-tab is-active" id="camFreeBtn" data-mode="free">Free Orbit</button>
+            <button class="camera-mode-tab" id="camFollowBtn" data-mode="follow">Follow ISS</button>
+            <button class="camera-mode-tab" id="camTopBtn" data-mode="top">Top Down</button>
+          </div>
+          <div class="globe-zoom-controls">
+            <button id="globeZoomInBtn" aria-label="Zoom in">+</button>
+            <button id="globeZoomOutBtn" aria-label="Zoom out">&minus;</button>
+          </div>
         </div>
       </main>
+    </div>
+
+    <div id="debugOverlay" class="debug-overlay hidden">
+      <div class="debug-row"><span>FPS</span><strong id="dbgFps">--</strong></div>
+      <div class="debug-row"><span>Frame time</span><strong id="dbgFrameTime">--</strong></div>
+      <div class="debug-row"><span>Draw calls</span><strong id="dbgDrawCalls">--</strong></div>
+      <div class="debug-row"><span>Triangles</span><strong id="dbgTriangles">--</strong></div>
+      <div class="debug-row"><span>GPU mem (est.)</span><strong id="dbgGpuMem">--</strong></div>
+      <div class="debug-row"><span>API latency</span><strong id="dbgLatency">--</strong></div>
+      <div class="debug-row"><span>Update freq</span><strong id="dbgUpdateFreq">--</strong></div>
+      <div class="debug-hint">Press D to close</div>
     </div>
 
     <div class="hud-bar">
