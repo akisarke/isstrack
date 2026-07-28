@@ -238,27 +238,15 @@ function createMarkerIcon(angle) {
   return L.divIcon({
     className: "iss-marker",
     html: `
-      <div class="satellite-arrow" style="transform: translateY(-20px) rotate(${angle}deg);"></div>
+      <div class="satellite-arrow" style="transform: translateY(-12px) rotate(${angle}deg);"></div>
       <div class="satellite-core"></div>
     `,
-    iconSize: [54, 54],
-    iconAnchor: [27, 27],
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
   });
 }
 
-document.addEventListener("pointerdown", (event) => {
-  const button = event.target.closest("button");
-  if (!button || button.disabled) return;
-  const rect = button.getBoundingClientRect();
-  const size = Math.max(rect.width, rect.height);
-  const ripple = document.createElement("span");
-  ripple.className = "ripple";
-  ripple.style.width = ripple.style.height = `${size}px`;
-  ripple.style.left = `${event.clientX - rect.left - size / 2}px`;
-  ripple.style.top = `${event.clientY - rect.top - size / 2}px`;
-  button.appendChild(ripple);
-  ripple.addEventListener("animationend", () => ripple.remove());
-});
+
 
 function getSubsolarPoint(date) {
   const J2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
@@ -307,20 +295,20 @@ const issMarker = L.marker([0, 0], {
 
 const issPulse = L.circle([0, 0], {
   radius: 1500000,
-  color: "#69d8ff",
-  weight: 1.5,
-  opacity: 0.8,
-  fillColor: "#69d8ff",
-  fillOpacity: 0.09,
+  color: "rgba(252, 60, 35, 0.35)",
+  weight: 1,
+  opacity: 0.5,
+  fillColor: "rgba(252, 60, 35, 0.05)",
+  fillOpacity: 1,
 }).addTo(map);
 
 const orbitRing = L.circle([0, 0], {
   radius: 19000000,
-  color: "#64b8ff",
-  weight: 2,
-  opacity: 0.4,
+  color: "rgba(255, 255, 255, 0.08)",
+  weight: 1,
+  opacity: 0.3,
   fill: false,
-  dashArray: "6 6",
+  dashArray: "4 8",
 }).addTo(map);
 
 issMarker.bindPopup("Loading ISS telemetry...");
@@ -342,11 +330,11 @@ function updateTrail(points) {
     const opacity = Math.max(0.12, 0.8 - (i / points.length) * 0.65);
     updateTrail.layers.push(
       L.polyline([start, end], {
-        color: "#67dfff",
-        weight: 3,
+        color: "rgba(252, 60, 35, 0.35)",
+        weight: 1.5,
         opacity,
         smoothFactor: 0.8,
-        dashArray: "2 7",
+        dashArray: "3 5",
       }).addTo(map),
     );
   }
@@ -371,7 +359,7 @@ function renderPosition(lat, lon, isNewFix) {
   if (isNewFix) {
     issMarker.setIcon(createMarkerIcon(lastRenderedHeading));
     issMarker.setPopupContent(
-      `<b>International Space Station</b><br>Latitude: ${lat.toFixed(2)}<br>Longitude: ${lon.toFixed(2)}<br>${new Date().toUTCString()}`,
+      `<b>ISS</b><br>${lat.toFixed(2)}° / ${lon.toFixed(2)}°<br>${new Date().toUTCString()}`,
     );
 
     state.trailPoints.push(position);
@@ -1118,7 +1106,7 @@ function showOfflineBanner(show, text) {
 
 async function getISS() {
   dom.updated.classList.add("loading");
-  setConnectionUI("Syncing...", null, "#ffb84d");
+  setConnectionUI("Syncing...", null, "#fc3c23");
   dom.telemetryStatus.textContent = "Syncing telemetry...";
 
   const requestStart = performance.now();
@@ -1150,6 +1138,8 @@ async function getISS() {
     animateValue(dom.packets);
     updateTelemetry(latitude, longitude, altitude, state.lastVelocity ?? velocity);
 
+    document.body.classList.remove("initializing");
+
     Cache.write({
       latitude,
       longitude,
@@ -1158,8 +1148,14 @@ async function getISS() {
       savedAt: Date.now(),
     });
 
-    setConnectionUI("Connected", null, "#25d366");
+    setConnectionUI("Connected", null, "#ba1e68");
     dom.telemetryStatus.textContent = "Receiving telemetry...";
+
+    const statusCard = document.querySelector(".selected");
+    if (statusCard) {
+      statusCard.classList.add("u--packet-received");
+      setTimeout(() => statusCard.classList.remove("u--packet-received"), 600);
+    }
   } catch (error) {
     state.net.consecutiveFailures += 1;
     console.error("Error fetching ISS data:", error);
@@ -1171,10 +1167,10 @@ async function getISS() {
       updateTelemetry(cached.latitude, cached.longitude, cached.altitude, cached.velocity);
       const ageMin = Math.max(1, Math.round((Date.now() - cached.savedAt) / 60000));
       showOfflineBanner(true, `Connection lost. Showing telemetry from ${ageMin} min ago.`);
-      setConnectionUI("Reconnecting...", null, "#ff9a3d");
+      setConnectionUI("Reconnecting...", null, "#8a1e40");
     } else {
       showOfflineBanner(true, "Connection lost and no cached telemetry is available.");
-      setConnectionUI("Disconnected", null, "#ff5b5b");
+      setConnectionUI("Disconnected", null, "#555555");
     }
     dom.telemetryStatus.textContent = "Telemetry lost";
   } finally {
@@ -1199,7 +1195,7 @@ window.addEventListener("online", () => {
 window.addEventListener("offline", () => {
   state.net.online = false;
   showOfflineBanner(true, "Your device is offline. Showing last known telemetry.");
-  setConnectionUI("Offline", null, "#ff5b5b");
+  setConnectionUI("Offline", null, "#555555");
 });
 
 function updateDebugOverlay() {
@@ -1223,23 +1219,8 @@ window.addEventListener("keydown", (event) => {
 });
 
 dom.cards.forEach((card) => {
-  card.addEventListener("pointermove", (event) => {
-    const rect = card.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width;
-    const y = (event.clientY - rect.top) / rect.height;
-    card.style.setProperty("--rotateX", `${(0.5 - y) * 18}deg`);
-    card.style.setProperty("--rotateY", `${(x - 0.5) * 26}deg`);
-    card.style.setProperty("--spotlight-x", `${x * 100}%`);
-    card.style.setProperty("--spotlight-y", `${y * 100}%`);
-  });
   card.addEventListener("pointerenter", () => card.classList.add("is-active"));
-  card.addEventListener("pointerleave", () => {
-    card.classList.remove("is-active");
-    card.style.setProperty("--rotateX", "0deg");
-    card.style.setProperty("--rotateY", "0deg");
-    card.style.setProperty("--spotlight-x", "-100%");
-    card.style.setProperty("--spotlight-y", "-100%");
-  });
+  card.addEventListener("pointerleave", () => card.classList.remove("is-active"));
 });
 
 dom.followBtn.addEventListener("click", () => {
@@ -1271,6 +1252,7 @@ dom.mapModeBtn.addEventListener("click", () => setViewMode("map"));
 dom.globeModeBtn.addEventListener("click", () => setViewMode("globe"));
 
 function init() {
+  document.body.classList.add("initializing");
   const saved = Settings.load();
   state.autoCenter = saved.autoCenter;
   state.cameraMode = saved.cameraMode;

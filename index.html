@@ -3,11 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🛰️ ISStrack</title>
+    <meta name="description" content="Real-time ISS tracker with 2D map and 3D globe views. Live orbital telemetry, velocity, altitude, and pass predictions." />
+    <meta property="og:title" content="ISStrack - Live ISS Tracker" />
+    <meta property="og:description" content="Track the International Space Station in real time on an interactive map or 3D globe." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://iss.akisarke.xyz" />
+    <meta name="theme-color" content="#0e0e0e" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://fonts.cdnfonts.com; script-src 'self' https://unpkg.com; img-src 'self' data: https://*.basemaps.cartocdn.com https://cdn.jsdelivr.net; connect-src 'self' https://api.wheretheiss.at https://ipapi.co; frame-src 'none';" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰</text></svg>" />
+    <title>ISStrack - Live ISS Tracker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css" />
@@ -32,6 +40,13 @@
         <p>Orbital telemetry</p>
       </div>
 
+      <div class="orbit-indicator" aria-hidden="true">
+        <div class="orbit-dot"></div>
+        <svg class="orbit-arc" width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <ellipse cx="14" cy="14" rx="12" ry="12" stroke="rgba(252,60,35,0.25)" stroke-width="1" />
+        </svg>
+      </div>
+
       <div class="status-pill">
         <span class="indicator"></span>
         <span id="connection">Connected</span>
@@ -41,7 +56,7 @@
     </header>
 
     <div class="container">
-      <aside class="sidebar">
+      <aside class="sidebar" aria-label="Telemetry data">
         <section class="panel-section">
           <div class="section-label">ISS STATUS</div>
           <div class="card selected">
@@ -52,14 +67,14 @@
             </div>
             <div class="status-row">
               <span>Connection</span>
-              <strong id="telemetryStatus">Receiving telemetry...</strong>
+              <strong id="telemetryStatus" aria-live="polite">Receiving telemetry...</strong>
             </div>
           </div>
         </section>
 
         <section class="panel-section">
           <div class="section-label">POSITION</div>
-          <div class="card telemetry-card">
+          <div class="card card--primary">
             <div class="metric-row">
               <span>Latitude</span>
               <strong id="lat">--</strong>
@@ -77,7 +92,7 @@
 
         <section class="panel-section">
           <div class="section-label">MOTION</div>
-          <div class="card telemetry-card">
+          <div class="card card--primary">
             <div class="metric-row">
               <span>Velocity</span>
               <strong id="velocity">--</strong>
@@ -95,7 +110,7 @@
 
         <section class="panel-section">
           <div class="section-label">ORBITAL DATA</div>
-          <div class="card telemetry-card">
+          <div class="card card--secondary">
             <div class="metric-row">
               <span>Altitude</span>
               <strong id="altitudeOrbit">--</strong>
@@ -113,7 +128,7 @@
 
         <section class="panel-section">
           <div class="section-label">TELEMETRY</div>
-          <div class="card telemetry-card">
+          <div class="card card--secondary">
             <div class="metric-row">
               <span>Last Packet</span>
               <strong id="lastPacket">--</strong>
@@ -131,7 +146,7 @@
 
         <section class="panel-section">
           <div class="section-label">NEXT VISIBLE PASS</div>
-          <div class="card pass-card">
+          <div class="card card--secondary">
             <div class="pass-row">
               <span>Location</span>
               <strong id="passLocation">Locating...</strong>
