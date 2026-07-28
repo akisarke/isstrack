@@ -1,4 +1,4 @@
-# 🛰️ ISS Track
+#  ISS Track
 
 International space station tracker app built with HTML, CSS and JavaScript. Shows the current position of the ISS on an interactive world map based on a public API endpoint
 
@@ -7,7 +7,7 @@ International space station tracker app built with HTML, CSS and JavaScript. Sho
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-## ✨ Features
+##  Features
 
 * Interactive world map
 * Tracking the international space station
@@ -17,17 +17,17 @@ International space station tracker app built with HTML, CSS and JavaScript. Sho
 * Responsive design
 * Dark space-themed UI
 
-## 🛠 Tech stack
+##  Tech stack
 
 HTML5, CSS3, JavaScript (ES6), Leaflet.js, OpenStreetMap, Open Notify ISS API
 
-## 📸 Preview
+##  Preview
 Map:
 <img width="1920" height="949" alt="image" src="https://github.com/user-attachments/assets/a9a6e041-f448-4b25-aedf-69202f7f0f67" />
 Globe:
 <img width="1920" height="949" alt="image" src="https://github.com/user-attachments/assets/92e058a6-3f30-4012-b258-401c039e91e4" />
 
-## 🚀 Getting Started
+##  Getting Started
 
 Clone the repo:
 ```bash
@@ -43,7 +43,7 @@ python -m http.server
 ```
 Then navigate to [http://localhost:8000](http://localhost:8000) or visit [my site](https://iss.akisarke.xyz).
 
-## 📂 Project structure
+##  Project structure
 ```text
 isstrack/
 ├── index.html
@@ -52,15 +52,18 @@ isstrack/
 └── README.md
 ```
 
-## 📡 How It Works
+##  How It Works
 
 1. The application retrieves the current coordinates of the ISS from a public API
 2. The response from the API contains the latitude and longitude of the ISS
 3. The map marker is updated with the new coordinates
 4. The position of the ISS is updated every few seconds
 
+##  AI Notice
 
-## 📄 License
+The Ui is mostly made by AI but i also had impacts on it, everything else I made.
+
+##  License
 
 This project is licensed under the MIT License.
 
