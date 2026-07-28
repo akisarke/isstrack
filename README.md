@@ -15,7 +15,7 @@ International space station tracker app built with HTML, CSS and JavaScript. Sho
 * Showing the last update timestamp
 * Refreshing every few seconds
 * Responsive design
-* Dark space-themed UI
+* NASA themed UI
 
 ##  Tech stack
 
@@ -23,9 +23,11 @@ HTML5, CSS3, JavaScript (ES6), Leaflet.js, OpenStreetMap, Open Notify ISS API
 
 ##  Preview
 Map:
-<img width="1920" height="949" alt="image" src="https://github.com/user-attachments/assets/a9a6e041-f448-4b25-aedf-69202f7f0f67" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/2c2f9831-f921-445c-8b1a-d4072eef2cd5" />
+
 Globe:
-<img width="1920" height="949" alt="image" src="https://github.com/user-attachments/assets/92e058a6-3f30-4012-b258-401c039e91e4" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/45c145e8-9499-4705-8b3f-b7ee266f4085" />
+
 
 ##  Getting Started
 
@@ -61,7 +63,7 @@ isstrack/
 
 ##  AI Notice
 
-The Ui is mostly made by AI but i also had impacts on it, everything else I made.
+The Ui is mostly made by AI but i also coded it, everything else I made.
 
 ##  License
 
