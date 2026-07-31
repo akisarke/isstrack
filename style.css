@@ -806,3 +806,353 @@ a:focus-visible,
     width: 180px;
   }
 }
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  transition: opacity 0.5s ease;
+  pointer-events: auto;
+}
+
+.loading-overlay.hidden {
+  display: none;
+  pointer-events: none;
+}
+
+.loading-overlay.loading-fade {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-content {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--space) * 2);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+}
+
+@keyframes spinArc {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.loading-spinner-arc {
+  animation: spinArc 1.2s linear infinite;
+  transform-origin: center;
+}
+
+.loading-label {
+  font-family: "Nasalization", "Barlow Condensed", sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.loading-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+
+.loading-active .loading-status {
+  animation: loadingPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.crew-list {
+  margin-top: calc(var(--space) * 1.5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space);
+}
+
+.crew-member {
+  display: flex;
+  gap: var(--space);
+  padding: calc(var(--space) * 0.75);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  cursor: default;
+}
+
+.crew-member:hover,
+.crew-member:focus-visible {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.crew-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.crew-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.crew-avatar-fallback {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.crew-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.crew-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.crew-role {
+  font-size: 9px;
+  color: var(--status);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+
+.crew-meta {
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 1px;
+  line-height: 1.4;
+}
+
+.crew-sep {
+  margin: 0 4px;
+  opacity: 0.4;
+}
+
+.spacecraft-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space) * 0.75);
+}
+
+.spacecraft-item {
+  padding: calc(var(--space) * 0.75);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.spacecraft-item:hover,
+.spacecraft-item:focus-visible {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.spacecraft-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space);
+}
+
+.spacecraft-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--text);
+}
+
+.spacecraft-status {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.spacecraft-mission {
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.spacecraft-meta {
+  font-size: 8px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.weather-note {
+  font-size: 8px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space) * 0.75);
+}
+
+.timeline-event {
+  display: flex;
+  gap: var(--space);
+  align-items: flex-start;
+  padding: calc(var(--space) * 0.5) 0;
+  border-left: 1px solid var(--line);
+  padding-left: var(--space);
+  position: relative;
+}
+
+.timeline-event.past {
+  opacity: 0.5;
+}
+
+.timeline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  margin-top: 3px;
+  position: absolute;
+  left: -3px;
+}
+
+.timeline-event.past .timeline-dot {
+  background: var(--muted);
+}
+
+.timeline-content {
+  flex: 1;
+}
+
+.timeline-label {
+  font-size: 10px;
+  color: var(--text);
+  font-family: "JetBrains Mono", monospace;
+}
+
+.timeline-time {
+  font-size: 8px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.api-health {
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.api-health.connected {
+  color: #ba1e68;
+}
+
+.api-health.disconnected {
+  color: #fc3c23;
+}
+
+.data-age {
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-age.live {
+  color: #4ade80;
+}
+
+.data-age.recent {
+  color: #facc15;
+}
+
+.data-age.stale {
+  color: #fb923c;
+}
+
+.data-age.old {
+  color: #ef4444;
+}
+
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+@media (forced-colors: active) {
+  .status-pill,
+  .card,
+  button,
+  .view-switcher,
+  .camera-mode-switcher {
+    border: 1px solid CanvasText;
+  }
+
+  .status-row strong,
+  .metric-row strong,
+  .pass-row strong {
+    color: CanvasText;
+  }
+}
+
+.card {
+  transition: border-color 0.25s ease, opacity 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.panel-section {
+  animation: fadeIn 0.4s ease both;
+}
+
+.panel-section:nth-child(1) { animation-delay: 0.05s; }
+.panel-section:nth-child(2) { animation-delay: 0.1s; }
+.panel-section:nth-child(3) { animation-delay: 0.15s; }
+.panel-section:nth-child(4) { animation-delay: 0.2s; }
+.panel-section:nth-child(5) { animation-delay: 0.25s; }
+.panel-section:nth-child(6) { animation-delay: 0.3s; }
+.panel-section:nth-child(7) { animation-delay: 0.35s; }
+.panel-section:nth-child(8) { animation-delay: 0.4s; }
+.panel-section:nth-child(9) { animation-delay: 0.45s; }
+.panel-section:nth-child(10) { animation-delay: 0.5s; }
+.panel-section:nth-child(11) { animation-delay: 0.55s; }
+.panel-section:nth-child(12) { animation-delay: 0.6s; }
+.panel-section:nth-child(13) { animation-delay: 0.65s; }
+
+@keyframes telemetryFlash {
+  0% { border-color: rgba(252, 60, 35, 0.5); }
+  100% { border-color: rgba(252, 60, 35, 0.2); }
+}
+
+.selected.u--packet-received {
+  animation: telemetryFlash 0.6s ease;
+}

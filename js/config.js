@@ -1,0 +1,21 @@
+export const CONFIG = Object.freeze({
+  UPDATE_INTERVAL_MS: 5000,
+  MAX_TRAIL_POINTS: 60,
+  REQUEST_TIMEOUT_MS: 8000,
+  MAX_RETRIES: 2,
+  RETRY_BASE_DELAY_MS: 700,
+  MAX_BACKOFF_MS: 20000,
+  DEFAULT_PASS_LOCATION: { lat: 44.2, lon: 21.18 },
+  ISS_API: 'https://api.wheretheiss.at/v1/satellites/25544',
+  IP_GEO_API: 'https://ipapi.co/json/',
+  SPACE_WEATHER_API: 'https://services.swpc.noaa.gov/json/planetary_k_index_1m.json',
+  SETTINGS_KEY: 'isstrack:settings:v1',
+  CACHE_KEY: 'isstrack:lastKnown:v1',
+  CREW_CACHE_KEY: 'isstrack:crew:v1',
+  GLOBE_TEXTURE_BASE: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/planets/',
+  GLOBE_MIN_ZOOM: 2.0,
+  GLOBE_MAX_ZOOM: 7,
+  GLOBE_ZOOM_STEP: 0.5,
+  EARTH_RADIUS_KM: 6371,
+  ISS_ORBIT_PERIOD_MIN: 92.68
+});
