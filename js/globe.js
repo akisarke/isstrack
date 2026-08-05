@@ -5,6 +5,21 @@ import { clamp, easeInOutQuad, getSubsolarPoint, latLonToLocalVector } from './u
 
 const DEG = Math.PI / 180;
 
+let _vUp = null;
+let _vFwd = null;
+let _vRight = null;
+let _mBasis = null;
+let _qTarget = null;
+
+function ensureGlobeHelpers() {
+  if (_vUp) return;
+  _vUp = new THREE.Vector3();
+  _vFwd = new THREE.Vector3();
+  _vRight = new THREE.Vector3();
+  _mBasis = new THREE.Matrix4();
+  _qTarget = new THREE.Quaternion();
+}
+
 const EARTH_VERTEX_SHADER = `
   varying vec2 vUv;
   varying vec3 vLocalNormal;
@@ -73,7 +88,9 @@ const Globe = {
   pendingLatLon: null,
   clock: { last: 0 },
   cameraTransition: null,
-  sunLocal: { x: 1, y: 0, z: 0 }
+  sunLocal: { x: 1, y: 0, z: 0 },
+  motionDir: null,
+  predictedLine: null
 };
 
 function webglIsSupported() {
@@ -232,10 +249,8 @@ export function initGlobe() {
     );
     Globe.group.add(Globe.orbitRing);
 
-    Globe.issMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.045, 18, 18),
-      new THREE.MeshBasicMaterial({ color: 0x7cf1ff })
-    );
+    Globe.issMesh = buildIssModel();
+    Globe.issMesh.scale.setScalar(0.6);
     Globe.group.add(Globe.issMesh);
 
     if (Globe.pendingLatLon) placeGlobeMarker(...Globe.pendingLatLon);
@@ -473,15 +488,77 @@ function zoomGlobeBy(deltaDistance, targetPoint) {
   Globe.camera.lookAt(center);
 }
 
+function buildIssModel() {
+  const group = new THREE.Group();
+
+  const bodyMat = new THREE.MeshBasicMaterial({ color: 0xd8e0ea });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.03, 0.075), bodyMat);
+  group.add(body);
+
+  const panelMat = new THREE.MeshBasicMaterial({ color: 0x2a6cd8, side: THREE.DoubleSide });
+  const panelGeo = new THREE.BoxGeometry(0.13, 0.002, 0.055);
+  const panelL = new THREE.Mesh(panelGeo, panelMat);
+  panelL.position.x = -0.082;
+  const panelR = new THREE.Mesh(panelGeo, panelMat);
+  panelR.position.x = 0.082;
+  group.add(panelL, panelR);
+
+  const armMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.003, 0.003), armMat);
+  group.add(arm);
+
+  const tipMat = new THREE.MeshBasicMaterial({ color: 0xfc3c23 });
+  const tip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), tipMat);
+  tip.position.z = 0.05;
+  group.add(tip);
+
+  return group;
+}
+
 function placeGlobeMarker(lat, lon) {
   const v = latLonToLocalVector(lat, lon, 1.3);
-  if (Globe.issMesh) Globe.issMesh.position.set(v.x, v.y, v.z);
+  if (!Globe.issMesh) return;
+  Globe.issMesh.position.set(v.x, v.y, v.z);
+
+  ensureGlobeHelpers();
+  _vUp.set(v.x, v.y, v.z).normalize();
+  _vFwd.copy(Globe.motionDir);
+  _vFwd.addScaledVector(_vUp, -_vFwd.dot(_vUp));
+  if (_vFwd.lengthSq() < 1e-6) return;
+  _vFwd.normalize();
+  _vRight.crossVectors(_vUp, _vFwd).normalize();
+  _mBasis.makeBasis(_vRight, _vUp, _vFwd);
+  _qTarget.setFromRotationMatrix(_mBasis);
+  Globe.issMesh.quaternion.slerp(_qTarget, 0.2);
 }
 
 export function updateGlobeMarker(lat, lon) {
   Globe.pendingLatLon = [lat, lon];
   if (!Globe.issMesh) return;
+  if (state.motion.from && state.motion.to) {
+    if (!Globe.motionDir) Globe.motionDir = new THREE.Vector3();
+    const f = latLonToLocalVector(state.motion.from[0], state.motion.from[1], 1.3);
+    const t = latLonToLocalVector(state.motion.to[0], state.motion.to[1], 1.3);
+    Globe.motionDir.set(t.x - f.x, t.y - f.y, t.z - f.z);
+  }
   placeGlobeMarker(lat, lon);
+}
+
+export function updateGlobePredictedPath(points) {
+  if (!points || points.length < 2) return;
+  const vecs = points.map(([lat, lon]) => {
+    const v = latLonToLocalVector(lat, lon, 1.3);
+    return new THREE.Vector3(v.x, v.y, v.z);
+  });
+  if (!Globe.predictedLine) {
+    Globe.predictedLine = new THREE.Line(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: 0x68dfff, transparent: true, opacity: 0.65 })
+    );
+    Globe.group.add(Globe.predictedLine);
+  }
+  Globe.predictedLine.geometry.dispose();
+  Globe.predictedLine.geometry = new THREE.BufferGeometry().setFromPoints(vecs);
 }
 
 function updateDebugRenderStats() {

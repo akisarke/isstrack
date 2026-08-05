@@ -1,8 +1,8 @@
 import { Settings, state } from './state.js';
 import { dom } from './dom.js';
 import { getISS, runMotionLoop, getCurrentBrowserLocation, updatePassPrediction, onPositionUpdate } from './telemetry.js';
-import { initMap, updateMapPosition, updateTrail, flyToISS, resetView, toggleAutoCenter, getMap } from './map.js';
-import { initGlobe, setCameraMode, updateGlobeMarker, setViewMode } from './globe.js';
+import { initMap, updateMapPosition, updateTrail, updatePredictedPath, flyToISS, resetView, toggleAutoCenter, getMap } from './map.js';
+import { initGlobe, setCameraMode, updateGlobeMarker, updateGlobePredictedPath, setViewMode } from './globe.js';
 import { renderCrew, renderSpacecraft, fetchSpaceWeather, updateMissionTimeline } from './features.js';
 import { runLoadingSequence } from './loader.js';
 import { animateCardEntrance, setupHoverAnimations } from './animations.js';
@@ -38,11 +38,17 @@ export function init() {
   }
 
   let lastHeading = 0;
+  let lastPredictedPath = null;
 
   onPositionUpdate((lat, lon) => {
-    updateMapPosition(lat, lon, lastHeading);
+    updateMapPosition(lat, lon, state.lastHeading ?? lastHeading);
     updateTrail(lat, lon);
     if (state.currentView === 'globe') updateGlobeMarker(lat, lon);
+    if (state.predictedPath !== lastPredictedPath) {
+      lastPredictedPath = state.predictedPath;
+      updatePredictedPath(state.predictedPath);
+      updateGlobePredictedPath(state.predictedPath);
+    }
   });
 
   getCurrentBrowserLocation();

@@ -63,6 +63,25 @@ export function bearing(lat1, lon1, lat2, lon2) {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
+export function destinationPoint(lat1, lon1, bearingDeg, distanceKm) {
+  const R = 6371;
+  const d = distanceKm / R;
+  const brng = bearingDeg * DEG;
+  const phi1 = lat1 * DEG;
+  const lam1 = lon1 * DEG;
+  const phi2 = Math.asin(
+    Math.sin(phi1) * Math.cos(d) +
+      Math.cos(phi1) * Math.sin(d) * Math.cos(brng)
+  );
+  const lam2 =
+    lam1 +
+    Math.atan2(
+      Math.sin(brng) * Math.sin(d) * Math.cos(phi1),
+      Math.cos(d) - Math.sin(phi1) * Math.sin(phi2)
+    );
+  return [phi2 / DEG, (((lam2 / DEG + 540) % 360) - 180)];
+}
+
 export function interpolateGreatCircle(lat1, lon1, lat2, lon2, f) {
   const phi1 = lat1 * DEG;
   const lam1 = lon1 * DEG;

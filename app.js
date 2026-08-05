@@ -58,8 +58,8 @@ const CrewCache = {
 
 const state = {
   updateCount: 0, totalDistance: 0, sessionDistance: 0,
-  lastPosition: null, lastVelocity: null, lastPacketAt: null,
-  trailPoints: [], userLocation: null,
+  lastPosition: null, lastVelocity: null, lastHeading: null, lastPacketAt: null,
+  trailPoints: [], predictedPath: [], userLocation: null,
   passLocation: CONFIG.DEFAULT_PASS_LOCATION,
   autoCenter: true, currentView: 'map', cameraMode: 'free',
   motion: { from: null, to: null, startedAt: 0, durationMs: CONFIG.UPDATE_INTERVAL_MS, current: null },
@@ -74,6 +74,19 @@ const state = {
 };
 
 const DEG = Math.PI / 180;
+let _vUp = null;
+let _vFwd = null;
+let _vRight = null;
+let _mBasis = null;
+let _qTarget = null;
+function ensureGlobeHelpers() {
+  if (_vUp) return;
+  _vUp = new THREE.Vector3();
+  _vFwd = new THREE.Vector3();
+  _vRight = new THREE.Vector3();
+  _mBasis = new THREE.Matrix4();
+  _qTarget = new THREE.Quaternion();
+}
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function easeInOutQuad(t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
@@ -120,6 +133,16 @@ function bearing(lat1, lon1, lat2, lon2) {
   const y = Math.sin(lonDiff) * Math.cos(lat2Rad);
   const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(lonDiff);
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+function destinationPoint(lat1, lon1, bearingDeg, distanceKm) {
+  const R = 6371;
+  const d = distanceKm / R;
+  const brng = bearingDeg * DEG;
+  const phi1 = lat1 * DEG;
+  const lam1 = lon1 * DEG;
+  const phi2 = Math.asin(Math.sin(phi1) * Math.cos(d) + Math.cos(phi1) * Math.sin(d) * Math.cos(brng));
+  const lam2 = lam1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(phi1), Math.cos(d) - Math.sin(phi1) * Math.sin(phi2));
+  return [phi2 / DEG, (((lam2 / DEG + 540) % 360) - 180)];
 }
 function interpolateGreatCircle(lat1, lon1, lat2, lon2, f) {
   const phi1 = lat1 * DEG;
@@ -362,7 +385,9 @@ async function getISS() {
 
     beginMotionTransition(latitude, longitude);
     state.lastVelocity = Number.isFinite(vel) && vel > 0 ? vel : state.lastVelocity;
+    state.lastHeading = heading;
     state.updateCount += 1;
+    computePredictedPath(latitude, longitude, heading, state.lastVelocity ?? vel);
 
     valueFlash(dom.lat); valueFlash(dom.lon); valueFlash(dom.speed); valueFlash(dom.packets);
     updateTelemetryDOM(latitude, longitude, altitude, state.lastVelocity ?? vel, heading, visibility);
@@ -394,6 +419,14 @@ async function getISS() {
   }
 }
 
+function computePredictedPath(latitude, longitude, heading, speedKmh) {
+  const points = [];
+  const speedKmS = Math.max(Number(speedKmh) || 27600, 1) / 3600;
+  for (let t = 4; t <= 20; t += 4) {
+    points.push(destinationPoint(latitude, longitude, heading, speedKmS * t * 60));
+  }
+  state.predictedPath = points;
+}
 function updatePassPrediction(latitude, longitude, speed) {
   const activeLocation = state.userLocation ?? state.passLocation;
   const distanceToLocation = calculateDistance(latitude, longitude, activeLocation.lat, activeLocation.lon);
@@ -464,6 +497,7 @@ function runMotionLoop(timestamp) {
 let mapInstance = null;
 let issMarker = null;
 let trailPolyline = null;
+let predictedPolyline = null;
 
 function initMap() {
   if (mapInstance) return mapInstance;
@@ -490,6 +524,14 @@ function updateTrail(lat, lon) {
   if (trailPolyline) { trailPolyline.setLatLngs(state.trailPoints); }
   else if (state.trailPoints.length > 1) { trailPolyline = L.polyline(state.trailPoints, { color: '#fc3c23', weight: 1.5, opacity: 0.6, smoothFactor: 1 }).addTo(mapInstance); }
 }
+function updatePredictedPath(points) {
+  if (!mapInstance || !points || points.length < 2) return;
+  if (!predictedPolyline) {
+    predictedPolyline = L.polyline(points, { color: '#68dfff', weight: 1.5, dashArray: '4 7', opacity: 0.75, smoothFactor: 1 }).addTo(mapInstance);
+  } else {
+    predictedPolyline.setLatLngs(points);
+  }
+}
 
 function flyToISS(lat, lon) {
   if (!mapInstance) return;
@@ -512,7 +554,7 @@ const EARTH_FRAGMENT_SHADER = `uniform sampler2D dayMap;uniform sampler2D nightM
 const ATMOSPHERE_VERTEX_SHADER = `varying vec3 vNormal;void main(){vNormal=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
 const ATMOSPHERE_FRAGMENT_SHADER = `varying vec3 vNormal;void main(){float fresnel=pow(0.68-dot(vNormal,vec3(0.0,0.0,1.0)),3.0);gl_FragColor=vec4(0.35,0.65,1.0,clamp(fresnel,0.0,1.0)*0.9);}`;
 
-const Globe = { supported: null, renderer: null, scene: null, camera: null, group: null, earthMesh: null, earthMaterial: null, cloudsMesh: null, issMesh: null, orbitRing: null, moonMesh: null, raycaster: null, pointerNDC: null, zero: null, animationFrame: null, resizeHandler: null, isDragging: false, lastInteraction: 0, pendingLatLon: null, clock: { last: 0 }, cameraTransition: null, sunLocal: { x: 1, y: 0, z: 0 } };
+const Globe = { supported: null, renderer: null, scene: null, camera: null, group: null, earthMesh: null, earthMaterial: null, cloudsMesh: null, issMesh: null, orbitRing: null, moonMesh: null, raycaster: null, pointerNDC: null, zero: null, animationFrame: null, resizeHandler: null, isDragging: false, lastInteraction: 0, pendingLatLon: null, clock: { last: 0 }, cameraTransition: null, sunLocal: { x: 1, y: 0, z: 0 }, motionDir: null, predictedLine: null };
 
 function webglIsSupported() {
   try { const canvas = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))); } catch { return false; }
@@ -592,7 +634,8 @@ function initGlobe() {
     Globe.orbitRing = new THREE.Line(new THREE.BufferGeometry().setFromPoints(orbPts), new THREE.LineBasicMaterial({ color: 0x68dfff, transparent: true, opacity: 0.75 }));
     Globe.group.add(Globe.orbitRing);
 
-    Globe.issMesh = new THREE.Mesh(new THREE.SphereGeometry(0.045, 18, 18), new THREE.MeshBasicMaterial({ color: 0x7cf1ff }));
+    Globe.issMesh = buildIssModel();
+    Globe.issMesh.scale.setScalar(0.6);
     Globe.group.add(Globe.issMesh);
     if (Globe.pendingLatLon) placeGlobeMarker(...Globe.pendingLatLon);
 
@@ -735,8 +778,64 @@ function zoomGlobeBy(delta, targetPoint) {
   Globe.camera.position.addScaledVector(aim, -actual);
   Globe.camera.lookAt(c);
 }
-function placeGlobeMarker(lat, lon) { const v = latLonToLocalVector(lat, lon, 1.3); if (Globe.issMesh) Globe.issMesh.position.set(v.x, v.y, v.z); }
-function updateGlobeMarker(lat, lon) { Globe.pendingLatLon = [lat, lon]; if (!Globe.issMesh) return; placeGlobeMarker(lat, lon); }
+function buildIssModel() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshBasicMaterial({ color: 0xd8e0ea });
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.03, 0.075), bodyMat));
+  const panelMat = new THREE.MeshBasicMaterial({ color: 0x2a6cd8, side: THREE.DoubleSide });
+  const panelGeo = new THREE.BoxGeometry(0.13, 0.002, 0.055);
+  const panelL = new THREE.Mesh(panelGeo, panelMat);
+  panelL.position.x = -0.082;
+  const panelR = new THREE.Mesh(panelGeo, panelMat);
+  panelR.position.x = 0.082;
+  group.add(panelL, panelR);
+  const armMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.003, 0.003), armMat));
+  const tipMat = new THREE.MeshBasicMaterial({ color: 0xfc3c23 });
+  const tip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), tipMat);
+  tip.position.z = 0.05;
+  group.add(tip);
+  return group;
+}
+function placeGlobeMarker(lat, lon) {
+  const v = latLonToLocalVector(lat, lon, 1.3);
+  if (!Globe.issMesh) return;
+  Globe.issMesh.position.set(v.x, v.y, v.z);
+  ensureGlobeHelpers();
+  _vUp.set(v.x, v.y, v.z).normalize();
+  _vFwd.copy(Globe.motionDir);
+  _vFwd.addScaledVector(_vUp, -_vFwd.dot(_vUp));
+  if (_vFwd.lengthSq() < 1e-6) return;
+  _vFwd.normalize();
+  _vRight.crossVectors(_vUp, _vFwd).normalize();
+  _mBasis.makeBasis(_vRight, _vUp, _vFwd);
+  _qTarget.setFromRotationMatrix(_mBasis);
+  Globe.issMesh.quaternion.slerp(_qTarget, 0.2);
+}
+function updateGlobeMarker(lat, lon) {
+  Globe.pendingLatLon = [lat, lon];
+  if (!Globe.issMesh) return;
+  if (state.motion.from && state.motion.to) {
+    if (!Globe.motionDir) Globe.motionDir = new THREE.Vector3();
+    const f = latLonToLocalVector(state.motion.from[0], state.motion.from[1], 1.3);
+    const t = latLonToLocalVector(state.motion.to[0], state.motion.to[1], 1.3);
+    Globe.motionDir.set(t.x - f.x, t.y - f.y, t.z - f.z);
+  }
+  placeGlobeMarker(lat, lon);
+}
+function updateGlobePredictedPath(points) {
+  if (!points || points.length < 2) return;
+  const vecs = points.map(([lat, lon]) => {
+    const v = latLonToLocalVector(lat, lon, 1.3);
+    return new THREE.Vector3(v.x, v.y, v.z);
+  });
+  if (!Globe.predictedLine) {
+    Globe.predictedLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x68dfff, transparent: true, opacity: 0.65 }));
+    Globe.group.add(Globe.predictedLine);
+  }
+  Globe.predictedLine.geometry.dispose();
+  Globe.predictedLine.geometry = new THREE.BufferGeometry().setFromPoints(vecs);
+}
 function updateDebugRenderStatsGlobe() {
   if (!Settings.data.debug || !Globe.renderer) return;
   const info = Globe.renderer.info;
@@ -962,10 +1061,16 @@ function init() {
   if (savedView === 'globe') setTimeout(() => setCameraMode(state.cameraMode), 200);
 
   let lastHeading = 0;
+  let lastPredictedPath = null;
   onPositionUpdate = (lat, lon) => {
-    updateMapPosition(lat, lon, lastHeading);
+    updateMapPosition(lat, lon, state.lastHeading ?? lastHeading);
     updateTrail(lat, lon);
     if (state.currentView === 'globe') updateGlobeMarker(lat, lon);
+    if (state.predictedPath !== lastPredictedPath) {
+      lastPredictedPath = state.predictedPath;
+      updatePredictedPath(state.predictedPath);
+      updateGlobePredictedPath(state.predictedPath);
+    }
   };
 
   getCurrentBrowserLocation();

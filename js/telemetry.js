@@ -3,7 +3,7 @@ import { state, Cache } from './state.js';
 import { dom } from './dom.js';
 import {
   clamp, easeInOutQuad, formatDegrees, formatKm, formatUTC,
-  calculateDistance, bearing, interpolateGreatCircle, getLocationLabel,
+  calculateDistance, bearing, destinationPoint, interpolateGreatCircle, getLocationLabel,
   animateValue, getHemisphere, getSubsolarPoint, formatDuration
 } from './utils.js';
 import { fetchWithRetry, fetchWithTimeout, updateDataAge, updateAPIHealth } from './api.js';
@@ -187,7 +187,10 @@ export async function getISS() {
 
     beginMotionTransition(latitude, longitude);
     state.lastVelocity = Number.isFinite(vel) && vel > 0 ? vel : state.lastVelocity;
+    state.lastHeading = heading;
     state.updateCount += 1;
+
+    computePredictedPath(latitude, longitude, heading, state.lastVelocity ?? vel);
 
     animateValue(dom.lat);
     animateValue(dom.lon);
@@ -231,6 +234,18 @@ export async function getISS() {
   } finally {
     scheduleNextPoll(getISS);
   }
+}
+
+const PREDICTED_HORIZON_MIN = 20;
+const PREDICTED_STEP_MIN = 4;
+
+function computePredictedPath(latitude, longitude, heading, speedKmh) {
+  const points = [];
+  const speedKmS = Math.max(Number(speedKmh) || 27600, 1) / 3600;
+  for (let t = PREDICTED_STEP_MIN; t <= PREDICTED_HORIZON_MIN; t += PREDICTED_STEP_MIN) {
+    points.push(destinationPoint(latitude, longitude, heading, speedKmS * t * 60));
+  }
+  state.predictedPath = points;
 }
 
 export function updatePassPrediction(latitude, longitude, speed) {

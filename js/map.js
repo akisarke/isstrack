@@ -6,6 +6,7 @@ import { createMarkerIcon } from './utils.js';
 let map = null;
 let issMarker = null;
 let trailPolyline = null;
+let predictedPolyline = null;
 
 export function initMap() {
   if (map) return map;
@@ -60,6 +61,21 @@ export function updateTrail(lat, lon) {
       opacity: 0.6,
       smoothFactor: 1
     }).addTo(map);
+  }
+}
+
+export function updatePredictedPath(points) {
+  if (!map || !points || points.length < 2) return;
+  if (!predictedPolyline) {
+    predictedPolyline = L.polyline(points, {
+      color: '#68dfff',
+      weight: 1.5,
+      dashArray: '4 7',
+      opacity: 0.75,
+      smoothFactor: 1
+    }).addTo(map);
+  } else {
+    predictedPolyline.setLatLngs(points);
   }
 }
 

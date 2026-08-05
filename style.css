@@ -333,6 +333,44 @@ body {
   gap: var(--space);
 }
 
+.mission-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mission-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: "Nasalization", "Barlow Condensed", sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.mission-link::after {
+  content: "\2197";
+  color: var(--muted);
+}
+
+.mission-link:hover {
+  border-color: var(--accent);
+  background: rgba(252, 60, 35, 0.08);
+}
+
+.mission-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 button {
   border: 1px solid var(--line);
   width: 100%;
@@ -435,6 +473,47 @@ a:focus-visible,
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-family: "Nasalization", "Barlow Condensed", sans-serif;
+}
+
+.map-legend {
+  position: absolute;
+  left: var(--space);
+  bottom: var(--space);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font-family: "Nasalization", "Barlow Condensed", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-line {
+  width: 16px;
+  border-top: 2px solid;
+  display: inline-block;
+}
+
+.legend-line--trail {
+  border-color: var(--accent);
+}
+
+.legend-line--predicted {
+  border-top-style: dashed;
+  border-color: #68dfff;
 }
 
 .map-surface,
@@ -797,6 +876,10 @@ a:focus-visible,
     bottom: auto;
     top: var(--space);
     left: 50%;
+  }
+
+  .map-legend {
+    display: none;
   }
 
   .debug-overlay {
