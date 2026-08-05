@@ -48,10 +48,15 @@ Then navigate to [http://localhost:8000](http://localhost:8000) or visit [my sit
 ##  Project structure
 ```text
 isstrack/
+├── js
+  ├── javascript scripts
+├── app.js
+├── CNAME
 ├── index.html
-├── style.css
+├── package.json
+├── README.md
 ├── script.js
-└── README.md
+├── style.css
 ```
 
 ##  How It Works
@@ -63,7 +68,7 @@ isstrack/
 
 ##  AI Notice
 
-The Ui is mostly made by AI but i also coded it, everything else I made.
+The UI and some code checking is the only bit of my project that AI helped me with.
 
 ##  License
 
