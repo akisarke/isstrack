@@ -124,11 +124,62 @@ export function createMarkerIcon(angle) {
   return L.divIcon({
     className: 'iss-marker',
     html: `
-      <div class="satellite-arrow" style="transform: translateY(-12px) rotate(${angle}deg);"></div>
-      <div class="satellite-core"></div>
+      <div class="iss-icon-wrap">
+        <div class="iss-glow"></div>
+        <svg class="iss-svg" viewBox="0 0 64 64" style="transform: rotate(${angle}deg);" xmlns="http://www.w3.org/2000/svg">
+          <g>
+            <!-- main integrated truss -->
+            <rect x="3" y="30.5" width="58" height="3" rx="1" fill="#aab4c4"/>
+
+            <!-- left solar arrays -->
+            <g fill="#2a6cd8" stroke="#8fb8ff" stroke-width="0.5">
+              <rect x="5" y="19" width="15" height="9.5" rx="0.5"/>
+              <rect x="5" y="35.5" width="15" height="9.5" rx="0.5"/>
+            </g>
+            <g stroke="#bfe0ff" stroke-width="0.5">
+              <line x1="8.75" y1="19" x2="8.75" y2="28.5"/>
+              <line x1="12.5" y1="19" x2="12.5" y2="28.5"/>
+              <line x1="16.25" y1="19" x2="16.25" y2="28.5"/>
+              <line x1="8.75" y1="35.5" x2="8.75" y2="45"/>
+              <line x1="12.5" y1="35.5" x2="12.5" y2="45"/>
+              <line x1="16.25" y1="35.5" x2="16.25" y2="45"/>
+            </g>
+
+            <!-- right solar arrays -->
+            <g fill="#2a6cd8" stroke="#8fb8ff" stroke-width="0.5">
+              <rect x="44" y="19" width="15" height="9.5" rx="0.5"/>
+              <rect x="44" y="35.5" width="15" height="9.5" rx="0.5"/>
+            </g>
+            <g stroke="#bfe0ff" stroke-width="0.5">
+              <line x1="47.75" y1="19" x2="47.75" y2="28.5"/>
+              <line x1="51.5" y1="19" x2="51.5" y2="28.5"/>
+              <line x1="55.25" y1="19" x2="55.25" y2="28.5"/>
+              <line x1="47.75" y1="35.5" x2="47.75" y2="45"/>
+              <line x1="51.5" y1="35.5" x2="51.5" y2="45"/>
+              <line x1="55.25" y1="35.5" x2="55.25" y2="45"/>
+            </g>
+
+            <!-- radiator panels -->
+            <g fill="#e7edf5" stroke="#9fb0c8" stroke-width="0.5">
+              <rect x="24" y="8" width="16" height="6" rx="0.8"/>
+              <rect x="24" y="50" width="16" height="6" rx="0.8"/>
+            </g>
+
+            <!-- pressurized module stack -->
+            <g fill="#d8e0ea" stroke="#8ea0b8" stroke-width="0.6">
+              <rect x="27" y="15" width="10" height="9" rx="2"/>
+              <rect x="27" y="24.5" width="10" height="15" rx="2.2"/>
+              <rect x="27" y="40" width="10" height="9" rx="2"/>
+            </g>
+
+            <!-- position marker -->
+            <circle cx="32" cy="32" r="3.4" fill="var(--accent)" stroke="#fff" stroke-width="1"/>
+          </g>
+        </svg>
+      </div>
     `,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18]
+    iconSize: [46, 46],
+    iconAnchor: [23, 23]
   });
 }
 

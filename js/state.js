@@ -69,6 +69,7 @@ export const state = {
   lastPacketAt: null,
   trailPoints: [],
   predictedPath: [],
+  pastOrbitPath: [],
   userLocation: null,
   passLocation: CONFIG.DEFAULT_PASS_LOCATION,
   autoCenter: true,

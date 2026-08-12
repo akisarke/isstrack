@@ -1,8 +1,8 @@
 import { Settings, state } from './state.js';
 import { dom } from './dom.js';
 import { getISS, runMotionLoop, getCurrentBrowserLocation, updatePassPrediction, onPositionUpdate } from './telemetry.js';
-import { initMap, updateMapPosition, updateTrail, updatePredictedPath, flyToISS, resetView, toggleAutoCenter, getMap } from './map.js';
-import { initGlobe, setCameraMode, updateGlobeMarker, updateGlobePredictedPath, setViewMode } from './globe.js';
+import { initMap, updateMapPosition, updateTrail, updatePredictedPath, updatePastOrbitPath, flyToISS, resetView, toggleAutoCenter, getMap } from './map.js';
+import { initGlobe, setCameraMode, updateGlobeMarker, updateGlobePredictedPath, updateGlobePastOrbitPath, setViewMode } from './globe.js';
 import { renderCrew, renderSpacecraft, fetchSpaceWeather, updateMissionTimeline } from './features.js';
 import { runLoadingSequence } from './loader.js';
 import { animateCardEntrance, setupHoverAnimations } from './animations.js';
@@ -48,6 +48,8 @@ export function init() {
       lastPredictedPath = state.predictedPath;
       updatePredictedPath(state.predictedPath);
       updateGlobePredictedPath(state.predictedPath);
+      updatePastOrbitPath(state.pastOrbitPath);
+      updateGlobePastOrbitPath(state.pastOrbitPath);
     }
   });
 

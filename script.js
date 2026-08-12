@@ -20,7 +20,8 @@ const CONFIG = Object.freeze({
   GLOBE_MAX_ZOOM: 7,
   GLOBE_ZOOM_STEP: 0.5,
   EARTH_RADIUS_KM: 6371,
-  ISS_ORBIT_PERIOD_MIN: 92.68
+  ISS_ORBIT_PERIOD_MIN: 92.68,
+  ISS_INCLINATION_DEG: 51.6414
 });
 
 const Settings = {
@@ -59,7 +60,7 @@ const CrewCache = {
 const state = {
   updateCount: 0, totalDistance: 0, sessionDistance: 0,
   lastPosition: null, lastVelocity: null, lastHeading: null, lastPacketAt: null,
-  trailPoints: [], predictedPath: [], userLocation: null,
+  trailPoints: [], predictedPath: [], pastOrbitPath: [], userLocation: null,
   passLocation: CONFIG.DEFAULT_PASS_LOCATION,
   autoCenter: true, currentView: 'map', cameraMode: 'free',
   motion: { from: null, to: null, startedAt: 0, durationMs: CONFIG.UPDATE_INTERVAL_MS, current: null },
@@ -169,10 +170,54 @@ function valueFlash(element) {
   element.classList.add('loading');
 }
 function createMarkerIcon(angle) {
+  const issSvg = `
+    <div class="iss-icon-wrap">
+      <div class="iss-glow"></div>
+      <svg class="iss-svg" viewBox="0 0 64 64" style="transform: rotate(${angle}deg);" xmlns="http://www.w3.org/2000/svg">
+        <g>
+          <rect x="3" y="30.5" width="58" height="3" rx="1" fill="#aab4c4"/>
+          <g fill="#2a6cd8" stroke="#8fb8ff" stroke-width="0.5">
+            <rect x="5" y="19" width="15" height="9.5" rx="0.5"/>
+            <rect x="5" y="35.5" width="15" height="9.5" rx="0.5"/>
+          </g>
+          <g stroke="#bfe0ff" stroke-width="0.5">
+            <line x1="8.75" y1="19" x2="8.75" y2="28.5"/>
+            <line x1="12.5" y1="19" x2="12.5" y2="28.5"/>
+            <line x1="16.25" y1="19" x2="16.25" y2="28.5"/>
+            <line x1="8.75" y1="35.5" x2="8.75" y2="45"/>
+            <line x1="12.5" y1="35.5" x2="12.5" y2="45"/>
+            <line x1="16.25" y1="35.5" x2="16.25" y2="45"/>
+          </g>
+          <g fill="#2a6cd8" stroke="#8fb8ff" stroke-width="0.5">
+            <rect x="44" y="19" width="15" height="9.5" rx="0.5"/>
+            <rect x="44" y="35.5" width="15" height="9.5" rx="0.5"/>
+          </g>
+          <g stroke="#bfe0ff" stroke-width="0.5">
+            <line x1="47.75" y1="19" x2="47.75" y2="28.5"/>
+            <line x1="51.5" y1="19" x2="51.5" y2="28.5"/>
+            <line x1="55.25" y1="19" x2="55.25" y2="28.5"/>
+            <line x1="47.75" y1="35.5" x2="47.75" y2="45"/>
+            <line x1="51.5" y1="35.5" x2="51.5" y2="45"/>
+            <line x1="55.25" y1="35.5" x2="55.25" y2="45"/>
+          </g>
+          <g fill="#e7edf5" stroke="#9fb0c8" stroke-width="0.5">
+            <rect x="24" y="8" width="16" height="6" rx="0.8"/>
+            <rect x="24" y="50" width="16" height="6" rx="0.8"/>
+          </g>
+          <g fill="#d8e0ea" stroke="#8ea0b8" stroke-width="0.6">
+            <rect x="27" y="15" width="10" height="9" rx="2"/>
+            <rect x="27" y="24.5" width="10" height="15" rx="2.2"/>
+            <rect x="27" y="40" width="10" height="9" rx="2"/>
+          </g>
+          <circle cx="32" cy="32" r="3.4" fill="var(--accent)" stroke="#fff" stroke-width="1"/>
+        </g>
+      </svg>
+    </div>
+  `;
   return L.divIcon({
     className: 'iss-marker',
-    html: `<div class="satellite-arrow" style="transform: translateY(-12px) rotate(${angle}deg);"></div><div class="satellite-core"></div>`,
-    iconSize: [36, 36], iconAnchor: [18, 18]
+    html: issSvg,
+    iconSize: [46, 46], iconAnchor: [23, 23]
   });
 }
 function getSubsolarPoint(date) {
@@ -387,7 +432,7 @@ async function getISS() {
     state.lastVelocity = Number.isFinite(vel) && vel > 0 ? vel : state.lastVelocity;
     state.lastHeading = heading;
     state.updateCount += 1;
-    computePredictedPath(latitude, longitude, heading, state.lastVelocity ?? vel);
+    computePredictedPath(latitude, longitude, heading);
 
     valueFlash(dom.lat); valueFlash(dom.lon); valueFlash(dom.speed); valueFlash(dom.packets);
     updateTelemetryDOM(latitude, longitude, altitude, state.lastVelocity ?? vel, heading, visibility);
@@ -419,13 +464,53 @@ async function getISS() {
   }
 }
 
-function computePredictedPath(latitude, longitude, heading, speedKmh) {
-  const points = [];
-  const speedKmS = Math.max(Number(speedKmh) || 27600, 1) / 3600;
-  for (let t = 4; t <= 20; t += 4) {
-    points.push(destinationPoint(latitude, longitude, heading, speedKmS * t * 60));
+const ORBIT_STEP_MIN = 1.5;
+const SIDEREAL_DAY_MIN = 1436.07;
+const ORBIT_DEG = Math.PI / 180;
+
+function computeOrbitGroundTrack(latitude, longitude, heading) {
+  const i = CONFIG.ISS_INCLINATION_DEG * ORBIT_DEG;
+  const sinI = Math.sin(i);
+  const cosI = Math.cos(i);
+  const period = CONFIG.ISS_ORBIT_PERIOD_MIN;
+
+  const lat0 = latitude * ORBIT_DEG;
+  const ratio = Math.max(-1, Math.min(1, Math.sin(lat0) / sinI));
+  const ascendingNow = Math.cos(heading * ORBIT_DEG) >= 0;
+  let u0 = Math.asin(ratio);
+  if (!ascendingNow) u0 = Math.PI - u0;
+
+  const orbitLon = (u) => Math.atan2(cosI * Math.sin(u), Math.cos(u));
+  const orbitLat = (u) => Math.asin(sinI * Math.sin(u));
+  const lambdaAsc = longitude * ORBIT_DEG - orbitLon(u0);
+
+  const pointAt = (dtMin) => {
+    const u = u0 + (dtMin / period) * 2 * Math.PI;
+    const lat = orbitLat(u) / ORBIT_DEG;
+    const earthRot = (dtMin / SIDEREAL_DAY_MIN) * 2 * Math.PI;
+    let lon = (lambdaAsc + orbitLon(u) - earthRot) / ORBIT_DEG;
+    lon = ((lon + 540) % 360) - 180;
+    return [lat, lon];
+  };
+
+  const halfOrbit = period / 2;
+  const future = [];
+  for (let t = ORBIT_STEP_MIN; t <= halfOrbit; t += ORBIT_STEP_MIN) {
+    future.push(pointAt(t));
   }
-  state.predictedPath = points;
+  const past = [];
+  for (let t = halfOrbit; t >= ORBIT_STEP_MIN; t -= ORBIT_STEP_MIN) {
+    past.push(pointAt(-t));
+  }
+  past.push([latitude, longitude]);
+
+  return { past, future };
+}
+
+function computePredictedPath(latitude, longitude, heading) {
+  const track = computeOrbitGroundTrack(latitude, longitude, heading);
+  state.pastOrbitPath = track.past;
+  state.predictedPath = track.future;
 }
 function updatePassPrediction(latitude, longitude, speed) {
   const activeLocation = state.userLocation ?? state.passLocation;
@@ -497,7 +582,26 @@ function runMotionLoop(timestamp) {
 let mapInstance = null;
 let issMarker = null;
 let trailPolyline = null;
-let predictedPolyline = null;
+let predictedPolylines = [];
+let pastOrbitPolylines = [];
+
+function splitAtAntimeridian(points) {
+  const segments = [];
+  let current = [];
+  for (let idx = 0; idx < points.length; idx += 1) {
+    const point = points[idx];
+    if (current.length) {
+      const prevLon = current[current.length - 1][1];
+      if (Math.abs(point[1] - prevLon) > 180) {
+        segments.push(current);
+        current = [];
+      }
+    }
+    current.push(point);
+  }
+  if (current.length) segments.push(current);
+  return segments;
+}
 
 function initMap() {
   if (mapInstance) return mapInstance;
@@ -526,11 +630,18 @@ function updateTrail(lat, lon) {
 }
 function updatePredictedPath(points) {
   if (!mapInstance || !points || points.length < 2) return;
-  if (!predictedPolyline) {
-    predictedPolyline = L.polyline(points, { color: '#68dfff', weight: 1.5, dashArray: '4 7', opacity: 0.75, smoothFactor: 1 }).addTo(mapInstance);
-  } else {
-    predictedPolyline.setLatLngs(points);
-  }
+  predictedPolylines.forEach((line) => mapInstance.removeLayer(line));
+  predictedPolylines = splitAtAntimeridian(points).map((segment) =>
+    L.polyline(segment, { color: '#68dfff', weight: 1.5, dashArray: '4 7', opacity: 0.75, smoothFactor: 1 }).addTo(mapInstance)
+  );
+}
+
+function updatePastOrbitPath(points) {
+  if (!mapInstance || !points || points.length < 2) return;
+  pastOrbitPolylines.forEach((line) => mapInstance.removeLayer(line));
+  pastOrbitPolylines = splitAtAntimeridian(points).map((segment) =>
+    L.polyline(segment, { color: '#ffb020', weight: 1.5, opacity: 0.55, smoothFactor: 1 }).addTo(mapInstance)
+  );
 }
 
 function flyToISS(lat, lon) {
@@ -554,7 +665,7 @@ const EARTH_FRAGMENT_SHADER = `uniform sampler2D dayMap;uniform sampler2D nightM
 const ATMOSPHERE_VERTEX_SHADER = `varying vec3 vNormal;void main(){vNormal=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
 const ATMOSPHERE_FRAGMENT_SHADER = `varying vec3 vNormal;void main(){float fresnel=pow(0.68-dot(vNormal,vec3(0.0,0.0,1.0)),3.0);gl_FragColor=vec4(0.35,0.65,1.0,clamp(fresnel,0.0,1.0)*0.9);}`;
 
-const Globe = { supported: null, renderer: null, scene: null, camera: null, group: null, earthMesh: null, earthMaterial: null, cloudsMesh: null, issMesh: null, orbitRing: null, moonMesh: null, raycaster: null, pointerNDC: null, zero: null, animationFrame: null, resizeHandler: null, isDragging: false, lastInteraction: 0, pendingLatLon: null, clock: { last: 0 }, cameraTransition: null, sunLocal: { x: 1, y: 0, z: 0 }, motionDir: null, predictedLine: null };
+const Globe = { supported: null, renderer: null, scene: null, camera: null, group: null, earthMesh: null, earthMaterial: null, cloudsMesh: null, issMesh: null, orbitRing: null, moonMesh: null, raycaster: null, pointerNDC: null, zero: null, animationFrame: null, resizeHandler: null, isDragging: false, lastInteraction: 0, pendingLatLon: null, clock: { last: 0 }, cameraTransition: null, sunLocal: { x: 1, y: 0, z: 0 }, motionDir: null, predictedLine: null, pastOrbitLine: null, pendingPredictedPath: null, pendingPastOrbitPath: null };
 
 function webglIsSupported() {
   try { const canvas = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))); } catch { return false; }
@@ -637,7 +748,15 @@ function initGlobe() {
     Globe.issMesh = buildIssModel();
     Globe.issMesh.scale.setScalar(0.6);
     Globe.group.add(Globe.issMesh);
+
+    Globe.predictedLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x68dfff, transparent: true, opacity: 0.65 }));
+    Globe.group.add(Globe.predictedLine);
+    Globe.pastOrbitLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.55 }));
+    Globe.group.add(Globe.pastOrbitLine);
+
     if (Globe.pendingLatLon) placeGlobeMarker(...Globe.pendingLatLon);
+    if (Globe.pendingPredictedPath) updateGlobePredictedPath(Globe.pendingPredictedPath);
+    if (Globe.pendingPastOrbitPath) updateGlobePastOrbitPath(Globe.pendingPastOrbitPath);
 
     updateSunDirection(true);
     attachGlobeControls();
@@ -780,21 +899,36 @@ function zoomGlobeBy(delta, targetPoint) {
 }
 function buildIssModel() {
   const group = new THREE.Group();
-  const bodyMat = new THREE.MeshBasicMaterial({ color: 0xd8e0ea });
-  group.add(new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.03, 0.075), bodyMat));
+  const trussMat = new THREE.MeshBasicMaterial({ color: 0xaab4c4 });
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.0035, 0.0035), trussMat));
   const panelMat = new THREE.MeshBasicMaterial({ color: 0x2a6cd8, side: THREE.DoubleSide });
-  const panelGeo = new THREE.BoxGeometry(0.13, 0.002, 0.055);
-  const panelL = new THREE.Mesh(panelGeo, panelMat);
-  panelL.position.x = -0.082;
-  const panelR = new THREE.Mesh(panelGeo, panelMat);
-  panelR.position.x = 0.082;
-  group.add(panelL, panelR);
-  const armMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
-  group.add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.003, 0.003), armMat));
+  const panelGeo = new THREE.BoxGeometry(0.034, 0.001, 0.058);
+  const gridMat = new THREE.LineBasicMaterial({ color: 0xbfe0ff, transparent: true, opacity: 0.8 });
+  [-0.093, -0.058, 0.058, 0.093].forEach((x) => {
+    const wing = new THREE.Mesh(panelGeo, panelMat);
+    wing.position.x = x;
+    group.add(wing);
+    const wireframe = new THREE.LineSegments(new THREE.EdgesGeometry(panelGeo), gridMat);
+    wireframe.position.x = x;
+    group.add(wireframe);
+  });
+  const moduleMat = new THREE.MeshBasicMaterial({ color: 0xd8e0ea });
+  const moduleGeo = new THREE.CylinderGeometry(0.0115, 0.0115, 0.026, 10);
+  [-0.026, 0, 0.026].forEach((z) => {
+    const segment = new THREE.Mesh(moduleGeo, moduleMat);
+    segment.rotation.x = Math.PI / 2;
+    segment.position.z = z;
+    group.add(segment);
+  });
+  const radiatorMat = new THREE.MeshBasicMaterial({ color: 0xe7edf5, side: THREE.DoubleSide });
+  const radiatorGeo = new THREE.BoxGeometry(0.03, 0.001, 0.014);
+  const radiatorTop = new THREE.Mesh(radiatorGeo, radiatorMat);
+  radiatorTop.position.set(0, 0.02, 0.03);
+  const radiatorBottom = new THREE.Mesh(radiatorGeo, radiatorMat);
+  radiatorBottom.position.set(0, -0.02, 0.03);
+  group.add(radiatorTop, radiatorBottom);
   const tipMat = new THREE.MeshBasicMaterial({ color: 0xfc3c23 });
-  const tip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), tipMat);
-  tip.position.z = 0.05;
-  group.add(tip);
+  group.add(new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 8), tipMat));
   return group;
 }
 function placeGlobeMarker(lat, lon) {
@@ -825,16 +959,23 @@ function updateGlobeMarker(lat, lon) {
 }
 function updateGlobePredictedPath(points) {
   if (!points || points.length < 2) return;
+  if (!Globe.group || !Globe.predictedLine) { Globe.pendingPredictedPath = points; return; }
   const vecs = points.map(([lat, lon]) => {
     const v = latLonToLocalVector(lat, lon, 1.3);
     return new THREE.Vector3(v.x, v.y, v.z);
   });
-  if (!Globe.predictedLine) {
-    Globe.predictedLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x68dfff, transparent: true, opacity: 0.65 }));
-    Globe.group.add(Globe.predictedLine);
-  }
   Globe.predictedLine.geometry.dispose();
   Globe.predictedLine.geometry = new THREE.BufferGeometry().setFromPoints(vecs);
+}
+function updateGlobePastOrbitPath(points) {
+  if (!points || points.length < 2) return;
+  if (!Globe.group || !Globe.pastOrbitLine) { Globe.pendingPastOrbitPath = points; return; }
+  const vecs = points.map(([lat, lon]) => {
+    const v = latLonToLocalVector(lat, lon, 1.3);
+    return new THREE.Vector3(v.x, v.y, v.z);
+  });
+  Globe.pastOrbitLine.geometry.dispose();
+  Globe.pastOrbitLine.geometry = new THREE.BufferGeometry().setFromPoints(vecs);
 }
 function updateDebugRenderStatsGlobe() {
   if (!Settings.data.debug || !Globe.renderer) return;
@@ -1070,6 +1211,8 @@ function init() {
       lastPredictedPath = state.predictedPath;
       updatePredictedPath(state.predictedPath);
       updateGlobePredictedPath(state.predictedPath);
+      updatePastOrbitPath(state.pastOrbitPath);
+      updateGlobePastOrbitPath(state.pastOrbitPath);
     }
   };
 

@@ -6,7 +6,28 @@ import { createMarkerIcon } from './utils.js';
 let map = null;
 let issMarker = null;
 let trailPolyline = null;
-let predictedPolyline = null;
+let predictedPolylines = [];
+let pastOrbitPolylines = [];
+
+// Splits a lat/lon path into segments wherever it crosses the antimeridian,
+// so Leaflet doesn't draw a stray horizontal line across the whole map.
+function splitAtAntimeridian(points) {
+  const segments = [];
+  let current = [];
+  for (let idx = 0; idx < points.length; idx += 1) {
+    const point = points[idx];
+    if (current.length) {
+      const prevLon = current[current.length - 1][1];
+      if (Math.abs(point[1] - prevLon) > 180) {
+        segments.push(current);
+        current = [];
+      }
+    }
+    current.push(point);
+  }
+  if (current.length) segments.push(current);
+  return segments;
+}
 
 export function initMap() {
   if (map) return map;
@@ -66,17 +87,29 @@ export function updateTrail(lat, lon) {
 
 export function updatePredictedPath(points) {
   if (!map || !points || points.length < 2) return;
-  if (!predictedPolyline) {
-    predictedPolyline = L.polyline(points, {
+  predictedPolylines.forEach((line) => map.removeLayer(line));
+  predictedPolylines = splitAtAntimeridian(points).map((segment) =>
+    L.polyline(segment, {
       color: '#68dfff',
       weight: 1.5,
       dashArray: '4 7',
       opacity: 0.75,
       smoothFactor: 1
-    }).addTo(map);
-  } else {
-    predictedPolyline.setLatLngs(points);
-  }
+    }).addTo(map)
+  );
+}
+
+export function updatePastOrbitPath(points) {
+  if (!map || !points || points.length < 2) return;
+  pastOrbitPolylines.forEach((line) => map.removeLayer(line));
+  pastOrbitPolylines = splitAtAntimeridian(points).map((segment) =>
+    L.polyline(segment, {
+      color: '#ffb020',
+      weight: 1.5,
+      opacity: 0.55,
+      smoothFactor: 1
+    }).addTo(map)
+  );
 }
 
 export function flyToISS(lat, lon) {

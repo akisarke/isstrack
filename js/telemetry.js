@@ -190,7 +190,7 @@ export async function getISS() {
     state.lastHeading = heading;
     state.updateCount += 1;
 
-    computePredictedPath(latitude, longitude, heading, state.lastVelocity ?? vel);
+    computePredictedPath(latitude, longitude, heading);
 
     animateValue(dom.lat);
     animateValue(dom.lon);
@@ -236,16 +236,57 @@ export async function getISS() {
   }
 }
 
-const PREDICTED_HORIZON_MIN = 20;
-const PREDICTED_STEP_MIN = 4;
+const ORBIT_STEP_MIN = 1.5;
+const SIDEREAL_DAY_MIN = 1436.07;
+const DEG = Math.PI / 180;
 
-function computePredictedPath(latitude, longitude, heading, speedKmh) {
-  const points = [];
-  const speedKmS = Math.max(Number(speedKmh) || 27600, 1) / 3600;
-  for (let t = PREDICTED_STEP_MIN; t <= PREDICTED_HORIZON_MIN; t += PREDICTED_STEP_MIN) {
-    points.push(destinationPoint(latitude, longitude, heading, speedKmS * t * 60));
+// Approximates the ISS ground track (the sinusoidal orbit line seen on
+// trackers like isstracker.pl) using the real orbital inclination combined
+// with the current lat/lon/heading fix, rather than a straight-line guess.
+function computeOrbitGroundTrack(latitude, longitude, heading) {
+  const i = CONFIG.ISS_INCLINATION_DEG * DEG;
+  const sinI = Math.sin(i);
+  const cosI = Math.cos(i);
+  const period = CONFIG.ISS_ORBIT_PERIOD_MIN;
+
+  const lat0 = latitude * DEG;
+  const ratio = Math.max(-1, Math.min(1, Math.sin(lat0) / sinI));
+  const ascendingNow = Math.cos(heading * DEG) >= 0; // moving northward component
+  let u0 = Math.asin(ratio); // radians, in [-90,90] deg range
+  if (!ascendingNow) u0 = Math.PI - u0;
+
+  const orbitLon = (u) => Math.atan2(cosI * Math.sin(u), Math.cos(u));
+  const orbitLat = (u) => Math.asin(sinI * Math.sin(u));
+
+  const lambdaAsc = longitude * DEG - orbitLon(u0);
+
+  const pointAt = (dtMin) => {
+    const u = u0 + (dtMin / period) * 2 * Math.PI;
+    const lat = orbitLat(u) / DEG;
+    const earthRot = (dtMin / SIDEREAL_DAY_MIN) * 2 * Math.PI;
+    let lon = (lambdaAsc + orbitLon(u) - earthRot) / DEG;
+    lon = ((lon + 540) % 360) - 180;
+    return [lat, lon];
+  };
+
+  const halfOrbit = period / 2;
+  const future = [];
+  for (let t = ORBIT_STEP_MIN; t <= halfOrbit; t += ORBIT_STEP_MIN) {
+    future.push(pointAt(t));
   }
-  state.predictedPath = points;
+  const past = [];
+  for (let t = halfOrbit; t >= ORBIT_STEP_MIN; t -= ORBIT_STEP_MIN) {
+    past.push(pointAt(-t));
+  }
+  past.push([latitude, longitude]);
+
+  return { past, future };
+}
+
+function computePredictedPath(latitude, longitude, heading) {
+  const { past, future } = computeOrbitGroundTrack(latitude, longitude, heading);
+  state.pastOrbitPath = past;
+  state.predictedPath = future;
 }
 
 export function updatePassPrediction(latitude, longitude, speed) {

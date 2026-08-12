@@ -90,7 +90,10 @@ const Globe = {
   cameraTransition: null,
   sunLocal: { x: 1, y: 0, z: 0 },
   motionDir: null,
-  predictedLine: null
+  predictedLine: null,
+  pastOrbitLine: null,
+  pendingPredictedPath: null,
+  pendingPastOrbitPath: null
 };
 
 function webglIsSupported() {
@@ -253,7 +256,21 @@ export function initGlobe() {
     Globe.issMesh.scale.setScalar(0.6);
     Globe.group.add(Globe.issMesh);
 
+    Globe.predictedLine = new THREE.Line(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: 0x68dfff, transparent: true, opacity: 0.65 })
+    );
+    Globe.group.add(Globe.predictedLine);
+
+    Globe.pastOrbitLine = new THREE.Line(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.55 })
+    );
+    Globe.group.add(Globe.pastOrbitLine);
+
     if (Globe.pendingLatLon) placeGlobeMarker(...Globe.pendingLatLon);
+    if (Globe.pendingPredictedPath) updateGlobePredictedPath(Globe.pendingPredictedPath);
+    if (Globe.pendingPastOrbitPath) updateGlobePastOrbitPath(Globe.pendingPastOrbitPath);
 
     updateSunDirection(true);
     attachGlobeControls();
@@ -491,25 +508,47 @@ function zoomGlobeBy(deltaDistance, targetPoint) {
 function buildIssModel() {
   const group = new THREE.Group();
 
-  const bodyMat = new THREE.MeshBasicMaterial({ color: 0xd8e0ea });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.03, 0.075), bodyMat);
-  group.add(body);
+  // Main integrated truss (spans local X, perpendicular to the flight direction)
+  const trussMat = new THREE.MeshBasicMaterial({ color: 0xaab4c4 });
+  const truss = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.0035, 0.0035), trussMat);
+  group.add(truss);
 
+  // Solar array wings: two stacked pairs at each end of the truss
   const panelMat = new THREE.MeshBasicMaterial({ color: 0x2a6cd8, side: THREE.DoubleSide });
-  const panelGeo = new THREE.BoxGeometry(0.13, 0.002, 0.055);
-  const panelL = new THREE.Mesh(panelGeo, panelMat);
-  panelL.position.x = -0.082;
-  const panelR = new THREE.Mesh(panelGeo, panelMat);
-  panelR.position.x = 0.082;
-  group.add(panelL, panelR);
+  const panelGeo = new THREE.BoxGeometry(0.034, 0.001, 0.058);
+  const gridMat = new THREE.LineBasicMaterial({ color: 0xbfe0ff, transparent: true, opacity: 0.8 });
+  const arrayXPositions = [-0.093, -0.058, 0.058, 0.093];
+  arrayXPositions.forEach((x) => {
+    const wing = new THREE.Mesh(panelGeo, panelMat);
+    wing.position.x = x;
+    group.add(wing);
+    const wireframe = new THREE.LineSegments(new THREE.EdgesGeometry(panelGeo), gridMat);
+    wireframe.position.x = x;
+    group.add(wireframe);
+  });
 
-  const armMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
-  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.003, 0.003), armMat);
-  group.add(arm);
+  // Pressurized module stack, aligned with the direction of travel (local Z)
+  const moduleMat = new THREE.MeshBasicMaterial({ color: 0xd8e0ea });
+  const moduleGeo = new THREE.CylinderGeometry(0.0115, 0.0115, 0.026, 10);
+  [-0.026, 0, 0.026].forEach((z) => {
+    const segment = new THREE.Mesh(moduleGeo, moduleMat);
+    segment.rotation.x = Math.PI / 2;
+    segment.position.z = z;
+    group.add(segment);
+  });
 
+  // Radiator panels near the center, perpendicular to the truss
+  const radiatorMat = new THREE.MeshBasicMaterial({ color: 0xe7edf5, side: THREE.DoubleSide });
+  const radiatorGeo = new THREE.BoxGeometry(0.03, 0.001, 0.014);
+  const radiatorTop = new THREE.Mesh(radiatorGeo, radiatorMat);
+  radiatorTop.position.set(0, 0.02, 0.03);
+  const radiatorBottom = new THREE.Mesh(radiatorGeo, radiatorMat);
+  radiatorBottom.position.set(0, -0.02, 0.03);
+  group.add(radiatorTop, radiatorBottom);
+
+  // Position beacon, matches the accent color used elsewhere in the app
   const tipMat = new THREE.MeshBasicMaterial({ color: 0xfc3c23 });
-  const tip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), tipMat);
-  tip.position.z = 0.05;
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 8), tipMat);
   group.add(tip);
 
   return group;
@@ -546,19 +585,30 @@ export function updateGlobeMarker(lat, lon) {
 
 export function updateGlobePredictedPath(points) {
   if (!points || points.length < 2) return;
+  if (!Globe.group || !Globe.predictedLine) {
+    Globe.pendingPredictedPath = points;
+    return;
+  }
   const vecs = points.map(([lat, lon]) => {
     const v = latLonToLocalVector(lat, lon, 1.3);
     return new THREE.Vector3(v.x, v.y, v.z);
   });
-  if (!Globe.predictedLine) {
-    Globe.predictedLine = new THREE.Line(
-      new THREE.BufferGeometry(),
-      new THREE.LineBasicMaterial({ color: 0x68dfff, transparent: true, opacity: 0.65 })
-    );
-    Globe.group.add(Globe.predictedLine);
-  }
   Globe.predictedLine.geometry.dispose();
   Globe.predictedLine.geometry = new THREE.BufferGeometry().setFromPoints(vecs);
+}
+
+export function updateGlobePastOrbitPath(points) {
+  if (!points || points.length < 2) return;
+  if (!Globe.group || !Globe.pastOrbitLine) {
+    Globe.pendingPastOrbitPath = points;
+    return;
+  }
+  const vecs = points.map(([lat, lon]) => {
+    const v = latLonToLocalVector(lat, lon, 1.3);
+    return new THREE.Vector3(v.x, v.y, v.z);
+  });
+  Globe.pastOrbitLine.geometry.dispose();
+  Globe.pastOrbitLine.geometry = new THREE.BufferGeometry().setFromPoints(vecs);
 }
 
 function updateDebugRenderStats() {

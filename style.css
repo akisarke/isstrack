@@ -697,31 +697,44 @@ a:focus-visible,
 }
 
 .iss-marker {
-  width: 36px !important;
-  height: 36px !important;
+  width: 46px !important;
+  height: 46px !important;
   display: grid;
   place-items: center;
   background: transparent;
   border: none;
+  overflow: visible;
 }
 
-.iss-marker .satellite-core {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 1px solid rgba(252, 60, 35, 0.4);
+.iss-icon-wrap {
   position: relative;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
 }
 
-.iss-marker .satellite-arrow {
+.iss-glow {
   position: absolute;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-bottom: 8px solid var(--accent);
-  transform: translateY(-12px);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(252, 60, 35, 0.55), rgba(252, 60, 35, 0) 70%);
+  animation: iss-pulse 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.iss-svg {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+  transition: transform 0.3s ease;
+}
+
+@keyframes iss-pulse {
+  0%, 100% { transform: scale(0.75); opacity: 0.55; }
+  50% { transform: scale(1.35); opacity: 1; }
 }
 
 .hud-bar {
